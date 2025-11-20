@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel</title>
+  <script type="module" src="./supabase-config-admin.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --primary:#007bff;
+      --bg1:#f8f9fa;
+      --bg2:#e3f2fd;
+      --card:#ffffff;
+      --text:#222;
+      --muted:#666;
+      --sidebar:#0f172a;
+      --sidebar-text:#e2e8f0;
+      --sidebar-active:#1d4ed8;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'Poppins',sans-serif;background:linear-gradient(to right,var(--bg1),var(--bg2));color:var(--text)}
+    h2,h3{margin:0 0 12px}
+    .login-wrap{max-width:420px;margin:48px auto;padding:24px;border-radius:12px;background:var(--card);box-shadow:0 4px 10px rgba(0,0,0,.08)}
+    input,button,textarea,select{
+      width:100%;padding:12px;margin-top:10px;font-size:16px;border-radius:8px;border:1px solid #d1d5db;background:#fff
+    }
+    button{background:var(--primary);color:#fff;font-weight:600;cursor:pointer;border:none}
+    button:hover{filter:brightness(.95)}
+    .hidden{display:none}
+
+    .layout{display:flex;min-height:100vh}
+    .sidebar{width:240px;background:var(--sidebar);color:var(--sidebar-text);padding:16px 12px}
+    .brand{display:flex;gap:10px;align-items:center;color:#fff;font-weight:700;margin:8px 8px 16px}
+    .menu{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+    .menu button{width:100%;text-align:left;background:transparent;color:var(--sidebar-text);padding:10px 12px;border-radius:10px}
+    .menu button:hover{background:rgba(255,255,255,.06)}
+    .menu button.active{background:var(--sidebar-active);color:#fff}
+
+    .content{flex:1;padding:20px;min-width:0}
+    .card{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.08);margin-bottom:16px;}
+    .request-box{background:#f1f8e9;padding:12px;border-radius:8px;margin-top:10px}
+    .btn-group{display:flex;gap:10px;margin-top:10px}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:8px 6px;border-bottom:1px solid #eee;text-align:left;font-size:14px}
+    th{color:#333}
+    .row{display:flex;gap:10px}
+    .row > *{flex:1}
+    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+    .muted{color:var(--muted);font-size:12px}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    .pill{display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px;border:1px solid #e5e7eb;background:#f8fafc}
+    .pill.gray{background:#f3f4f6;border-color:#e5e7eb;color:#374151}
+
+    /* 在线卡片的小绿点 */
+    .dot{width:10px;height:10px;border-radius:999px;background:#22c55e;display:inline-block;margin-right:6px}
+
+    /* ===== KPI Online card ===== */
+    .kpi-bar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .kpi{cursor:pointer;user-select:none;background:var(--card);border:1px solid #e5e7eb;
+         border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.06);padding:14px;min-width:220px;display:flex;align-items:center;gap:12px}
+    .kpi:hover{box-shadow:0 8px 18px rgba(0,0,0,.08)}
+    .kpi .kpi-title{display:flex;align-items:center;gap:8px;font-weight:700;color:#111827}
+    .kpi .kpi-value{font-size:26px;font-weight:800;line-height:1;margin-top:6px}
+    .kpi .kpi-hint{color:var(--muted);font-size:12px;margin-top:4px}
+
+    /* === 新增：设密码弹窗样式（不影响现有） === */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:9999}
+    .modal{width:100%;max-width:420px;background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:18px}
+    .modal h3{margin:0 0 8px}
+    .modal .row{gap:8px}
+    .modal .actions{display:flex;gap:10px;margin-top:12px}
+  </style>
+</head>
+<body>
+
+  <div id="login-section" class="login-wrap">
+    <h2>🔐 Admin Login</h2>
+    <input type="email" id="email" placeholder="Admin Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button id="login-btn">Login</button>
+  </div>
+
+  <div id="admin-layout" class="layout hidden">
+    <aside class="sidebar">
+      <div class="brand">🛠️ Admin Panel</div>
+      <div class="menu">
+        <button data-tab="online" class="">🟢 Online</button>
+        <button data-tab="bank" class="active">🏦 Bank Info</button>
+        <button data-tab="recharge">💳 Recharge Requests</button>
+        <button data-tab="withdraw">💸 Withdraw Requests</button>
+        <button data-tab="bets">📜 Today’s Bets (IST)</button>
+        <button data-tab="manual">🎯 Manual Result (Old Dice)</button>
+        <button data-tab="wheel">🎡 Wheel Control</button>
+        <button data-tab="ab">🃏 AB Control</button>
+        <button data-tab="wingo">🎯 Wingo Control</button>
+        <button data-tab="users">👥 Users</button>
+      </div>
+    </aside>
+
+    <main class="content">
+
+      <!-- ===== 全局在线人数 KPI（任何标签页都可见） ===== -->
+      <div class="kpi-bar">
+        <div id="kpi-online-card" class="kpi" title="点击查看在线用户">
+          <img alt="online" width="36" height="36"
+               src="data:image/svg+xml;utf8,<?xml version='1.0' encoding='UTF-8'?><svg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 24 24' fill='none'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4Zm0 2c-3.33 0-10 1.67-10 5v1h20v-1c0-3.33-6.67-5-10-5Z' stroke='%232468F5' stroke-width='1.5'/></svg>">
+          <div>
+            <div class="kpi-title"><span class="dot"></span>在线会员（最近2分钟）</div>
+            <div id="kpi-online-num" class="kpi-value">0</div>
+            <div class="kpi-hint">点击此卡片跳转到在线列表</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Online（只保留列表） -->
+      <section id="tab-online" class="tab hidden">
+        <div class="card" id="online-list">
+          <h3 id="online-anchor">在线用户列表</h3>
+          <div class="toolbar">
+            <span id="online-page-info" class="pill gray">Page 1</span>
+            <button id="online-prev" style="width:auto">Prev</button>
+            <button id="online-next" style="width:auto">Next</button>
+            <span class="muted">20 / page</span>
+          </div>
+          <div id="online-users-table" style="margin-top:8px">Loading...</div>
+        </div>
+      </section>
+
+      <!-- Bank -->
+      <section id="tab-bank" class="tab">
+        <div class="card">
+          <h3>🏦 Bank Info</h3>
+          <div class="row">
+            <input id="name"  placeholder="Name"/>
+            <input id="ac"    placeholder="Account Number"/>
+          </div>
+          <div class="row">
+            <input id="ifsc"  placeholder="IFSC Code"/>
+            <input id="upi"   placeholder="UPI ID"/>
+          </div>
+          <input id="crypto" placeholder="Crypto Address"/>
+          <button id="save-bank-btn">Save</button>
+        </div>
+      </section>
+
+      <!-- Recharge -->
+      <section id="tab-recharge" class="tab hidden">
+        <div class="card">
+          <h3>💳 Recharge Requests</h3>
+          <div class="toolbar">
+            <input id="recharge-search" placeholder="Search email…" style="max-width:320px"/>
+            <button id="recharge-search-btn" style="width:auto">Search</button>
+            <span class="muted">20 / page</span>
+          </div>
+          <div class="toolbar">
+            <button id="recharge-prev" style="width:auto">Prev</button>
+            <span id="recharge-page-info" class="pill gray">Page 1</span>
+            <button id="recharge-next" style="width:auto">Next</button>
+          </div>
+          <div id="recharge-requests">Loading...</div>
+        </div>
+      </section>
+
+      <!-- Withdraw -->
+      <section id="tab-withdraw" class="tab hidden">
+        <div class="card">
+          <h3>💸 Withdraw Requests</h3>
+          <div class="toolbar">
+            <input id="withdraw-search" placeholder="Search email…" style="max-width:320px"/>
+            <button id="withdraw-search-btn" style="width:auto">Search</button>
+            <span class="muted">20 / page</span>
+          </div>
+          <div class="toolbar">
+            <button id="withdraw-prev" style="width:auto">Prev</button>
+            <span id="withdraw-page-info" class="pill gray">Page 1</span>
+            <button id="withdraw-next" style="width:auto">Next</button>
+          </div>
+          <div id="withdraw-requests">Loading...</div>
+        </div>
+      </section>
+
+      <!-- Bets -->
+      <section id="tab-bets" class="tab hidden">
+        <div class="card">
+          <h3>📜 Today’s Bets (IST)</h3>
+          <div class="toolbar">
+            <input id="bet-email-filter" placeholder="Filter by email (optional)" style="max-width:320px"/>
+            <button id="bets-reload" style="width:auto">Reload</button>
+          </div>
+          <div id="today-bets" style="margin-top:8px">Loading...</div>
+        </div>
+      </section>
+
+      <!-- Manual (旧骰子) -->
+      <section id="tab-manual" class="tab hidden">
+        <div class="card">
+          <h3>🎯 Manual Result Setter</h3>
+          <div class="row">
+            <input id="manual-round" class="mono" placeholder="Round Number (e.g. 202508081430)" />
+            <input id="manual-result" type="number" min="1" max="6" placeholder="Result (1-6)" />
+          </div>
+          <button id="set-result-btn">Set Result</button>
+          <p class="muted" style="margin-top:8px">若该期已存在，将更新并标记 <code>is_manual=true</code>。</p>
+        </div>
+      </section>
+
+      <!-- Wheel Control -->
+      <section id="tab-wheel" class="tab hidden">
+        <div class="card">
+          <h3>🎡 Mini Wheel — Manual Result</h3>
+          <div class="toolbar">
+            <span class="pill gray">IST Now: <span id="wheel-ist-now" class="mono">—</span></span>
+            <span class="pill">Prev: <code id="wheel-prev" class="mono">—</code></span>
+            <span class="pill">Curr: <code id="wheel-curr" class="mono">—</code></span>
+            <span class="pill">Next: <code id="wheel-next" class="mono">—</code></span>
+            <button id="wheel-refresh-times" style="width:auto">Refresh</button>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <input id="wheel-round-input" class="mono" placeholder="Round Number (e.g. 202508081430)"/>
+            <input id="wheel-number-input" type="number" min="3" max="18" placeholder="Result Number (3–18)"/>
+          </div>
+          <div class="row">
+            <input id="wheel-multiplier" class="mono" placeholder="Multiplier (auto)" disabled/>
+            <input id="wheel-index" class="mono" placeholder="Index (auto)" disabled/>
+          </div>
+          <div class="btn-group">
+            <button id="wheel-fill-prev" style="width:auto">⬅️ Fill Prev</button>
+            <button id="wheel-fill-curr" style="width:auto">🕒 Fill Curr</button>
+            <button id="wheel-fill-next" style="width:auto">➡️ Fill Next</button>
+            <button id="wheel-save" style="width:auto">💾 Save Manual Result</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- AB Control -->
+<section id="tab-ab" class="tab hidden">
+  <div class="card">
+    <h3>🃏 Andar Bahar — Manual Result</h3>
+
+    <div class="toolbar">
+      <span class="pill gray">IST Now: <span id="ab-ist-now" class="mono">—</span></span>
+      <span class="pill">Prev: <code id="ab-prev" class="mono">—</code></span>
+      <span class="pill">Curr: <code id="ab-curr" class="mono">—</code></span>
+      <span class="pill">Next: <code id="ab-next" class="mono">—</code></span>
+      <button id="ab-refresh-times" style="width:auto">Refresh</button>
+    </div>
+
+    <div class="row" style="margin-top:10px">
+      <input id="ab-round-input" class="mono" placeholder="Round Number (e.g. 202508081430)"/>
+      <select id="ab-side-input">
+        <option value="andar">andar</option>
+        <option value="bahar">bahar</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <input id="ab-lead-rank" class="mono" placeholder="lead_rank (1–13, 可选)"/>
+      <input id="ab-match-index" class="mono" placeholder="match_index (发到第几张中, 可选)"/>
+    </div>
+
+    <div class="btn-group">
+      <button id="ab-fill-prev" style="width:auto">⬅️ Fill Prev</button>
+      <button id="ab-fill-curr" style="width:auto">🕒 Fill Curr</button>
+      <button id="ab-fill-next" style="width:auto">➡️ Fill Next</button>
+      <label style="display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="ab-force"/> force 覆盖已结算
+      </label>
+      <button id="ab-save" style="width:auto;background:#16a34a">💾 Save & Settle</button>
+    </div>
+
+    <div id="ab-last-msg" class="muted" style="margin-top:8px"></div>
+  </div>
+</section>
+
+
+      <!-- Wingo Control（只保存结果） -->
+      <section id="tab-wingo" class="tab hidden">
+        <div class="card">
+          <h3>🎯 WinGo — Manual Result (Save Only)</h3>
+          <div class="toolbar">
+            <span class="pill gray">IST Now: <span id="wingo-ist-now" class="mono">—</span></span>
+            <span class="pill">Prev: <code id="wingo-prev" class="mono">—</code></span>
+            <span class="pill">Curr: <code id="wingo-curr" class="mono">—</code></span>
+            <span class="pill">Next: <code id="wingo-next" class="mono">—</code></span>
+            <button id="wingo-refresh-times" style="width:auto">Refresh</button>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <input id="wingo-round-input" class="mono" placeholder="Round Number (e.g. 202508081430)"/>
+            <input id="wingo-number-input" type="number" min="0" max="9" placeholder="Result Number (0–9)"/>
+          </div>
+          <div class="btn-group">
+            <button id="wingo-fill-prev" style="width:auto">⬅️ Fill Prev</button>
+            <button id="wingo-fill-curr" style="width:auto">🕒 Fill Curr</button>
+            <button id="wingo-fill-next" style="width:auto">➡️ Fill Next</button>
+            <button id="wingo-save" style="width:auto;background:#16a34a">💾 Save</button>
+          </div>
+          <div id="wingo-last-msg" class="muted" style="margin-top:8px"></div>
+        </div>
+      </section>
+
+      <!-- Users -->
+      <section id="tab-users" class="tab hidden">
+        <div class="card">
+          <h3>👥 Users</h3>
+          <div class="toolbar">
+            <input id="users-email-filter" placeholder="Filter by email (optional)" style="max-width:320px"/>
+            <button id="users-reload" style="width:auto">Reload</button>
+            <span class="muted">20 / page</span>
+          </div>
+          <div class="toolbar">
+            <button id="users-prev" style="width:auto">Prev</button>
+            <span id="users-page-info" class="pill gray">Page 1</span>
+            <button id="users-next" style="width:auto">Next</button>
+          </div>
+          <div id="users-table" style="margin-top:8px">Loading...</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- === 新增：设密码弹窗（独立，不影响现有） === -->
+  <div id="setPwdBackdrop" class="modal-backdrop">
+    <div class="modal">
+      <h3>🔒 Set User Password</h3>
+      <div class="muted" id="setPwdTargetInfo">—</div>
+      <input id="setPwdNew" type="password" placeholder="New password (min 6 chars)"/>
+      <div class="actions">
+        <button id="setPwdConfirm">Confirm</button>
+        <button id="setPwdCancel" style="background:#6b7280">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase } from './supabase-config-admin.js';
+
+    const ADMIN_EMAIL = 'admin@gmail.com';
+
+    const loginSection = document.getElementById('login-section');
+    const adminLayout  = document.getElementById('admin-layout');
+
+    function showLogin(){ loginSection.classList.remove('hidden'); adminLayout.classList.add('hidden'); }
+    function showAdmin(){ loginSection.classList.add('hidden'); adminLayout.classList.remove('hidden'); }
+    let appInited = false;
+    function ensureInitOnce(){ if (appInited) return; appInited = true; initTabs(); loadAll(); }
+    const isAdminSession = (s)=> s?.user?.email === ADMIN_EMAIL;
+
+    // 分页与搜索状态
+    const PAGE_SIZE = 20;
+    let rechargePage = 1, rechargeQuery = '';
+    let withdrawPage = 1, withdrawQuery = '';
+    let usersPage    = 1;
+
+    // 在线分页与自动刷新
+    let onlinePage   = 1;
+    let onlineTimer  = null;
+    const ONLINE_REFRESH_SEC = 15;
+
+    // boot + session listener
+    (async function boot(){
+      const { data:{ session } } = await supabase.auth.getSession();
+      if (isAdminSession(session)){ showAdmin(); ensureInitOnce(); } else { showLogin(); }
+    })();
+    supabase.auth.onAuthStateChange((_event, session)=>{
+      if (isAdminSession(session)){ showAdmin(); ensureInitOnce(); } else { showLogin(); }
+    });
+
+    // login
+    document.getElementById('login-btn').onclick = async () => {
+      const email = (document.getElementById('email').value || '').trim();
+      const password = document.getElementById('password').value;
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return alert('Login failed: ' + error.message);
+      if (data.user.email !== ADMIN_EMAIL) {
+        await supabase.auth.signOut();
+        alert('Not authorized'); return;
+      }
+    };
+
+    function initTabs(){
+      const buttons = document.querySelectorAll('.menu button');
+      buttons.forEach(btn=>{
+        btn.onclick = ()=>{
+          buttons.forEach(b=>b.classList.remove('active'));
+          btn.classList.add('active');
+          const tab = btn.getAttribute('data-tab');
+          document.querySelectorAll('.tab').forEach(sec=>sec.classList.add('hidden'));
+          document.getElementById('tab-' + tab).classList.remove('hidden');
+
+          // 切换 Tab 时，避免重复定时器
+          if (onlineTimer){ clearInterval(onlineTimer); onlineTimer = null; }
+
+          if (tab==='online') loadOnline();
+          if (tab==='recharge') loadRechargeRequests();
+          if (tab==='withdraw') loadWithdrawRequests();
+          if (tab==='bets')     loadTodayBets();
+          if (tab==='users')    loadUsers();
+          if (tab==='wheel')    refreshWheelTimes();
+          if (tab==='wingo')    refreshWingoTimes();
+          if (tab==='ab')       refreshABTimes();
+
+        };
+      });
+
+      // 在线：翻页
+      document.getElementById('online-prev').onclick = ()=>{ if (onlinePage>1){ onlinePage--; loadOnlineUsers(); } };
+      document.getElementById('online-next').onclick = ()=>{ onlinePage++; loadOnlineUsers(); };
+
+      // KPI 点击 → 打开 Online 标签页并滚动
+      const kpiOnline = document.getElementById('kpi-online-card');
+      if (kpiOnline){
+        kpiOnline.addEventListener('click', ()=>{
+          const btn = document.querySelector('.menu button[data-tab="online"]');
+          if (btn) btn.click();
+          setTimeout(()=> document.getElementById('online-anchor')?.scrollIntoView({behavior:'smooth', block:'start'}), 50);
+        });
+      }
+
+      // 首次刷新 KPI，并设置定时器
+      refreshOnlineKPI();
+      setInterval(refreshOnlineKPI, 20000);
+      document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) refreshOnlineKPI(); });
+
+      // Recharge 搜索/分页
+      document.getElementById('recharge-search-btn').onclick = ()=>{
+        rechargeQuery = (document.getElementById('recharge-search').value || '').trim();
+        rechargePage = 1; loadRechargeRequests();
+      };
+      document.getElementById('recharge-prev').onclick = ()=>{ if (rechargePage>1){ rechargePage--; loadRechargeRequests(); } };
+      document.getElementById('recharge-next').onclick = ()=>{ rechargePage++; loadRechargeRequests(); };
+
+      // Withdraw 搜索/分页
+      document.getElementById('withdraw-search-btn').onclick = ()=>{
+        withdrawQuery = (document.getElementById('withdraw-search').value || '').trim();
+        withdrawPage = 1; loadWithdrawRequests();
+      };
+      document.getElementById('withdraw-prev').onclick = ()=>{ if (withdrawPage>1){ withdrawPage--; loadWithdrawRequests(); } };
+      document.getElementById('withdraw-next').onclick = ()=>{ withdrawPage++; loadWithdrawRequests(); };
+
+      // Users 分页
+      document.getElementById('users-prev').onclick = ()=>{ if (usersPage>1){ usersPage--; loadUsers(); } };
+      document.getElementById('users-next').onclick = ()=>{ usersPage++; loadUsers(); };
+    }
+
+    function setPageInfo(elId, page, total){
+      const el = document.getElementById(elId);
+      if (!el) return;
+      const totalPages = Math.max(1, Math.ceil((total||0) / PAGE_SIZE));
+      el.textContent = `Page ${page} / ${totalPages} • ${total||0} rows`;
+    }
+
+    /* ==================== Online：人数统计 + 列表 ==================== */
+    async function loadOnline(){
+      await Promise.all([refreshOnlineKPI(), loadOnlineUsers()]);
+      onlineTimer = setInterval(()=>{ refreshOnlineKPI(); loadOnlineUsers(); }, ONLINE_REFRESH_SEC * 1000);
+    }
+
+    async function refreshOnlineKPI(){
+      try{
+        const { data, error } = await supabase.from('v_online_count').select('online_count').single();
+        const num = Number(error ? 0 : (data?.online_count ?? 0));
+        const kpiNum = document.getElementById('kpi-online-num');
+        if (kpiNum) kpiNum.textContent = num;
+      }catch(_e){}
+    }
+
+    async function loadOnlineUsers(){
+      const container = document.getElementById('online-users-table');
+      const from = (onlinePage - 1) * PAGE_SIZE;
+      const to   = from + PAGE_SIZE - 1;
+
+      const { data, count, error, status } = await supabase
+        .from('v_online_users')
+        .select('*', { count: 'exact' })
+        .range(from, to);
+
+      if (status === 416 || (error && error.status === 416)) {
+        if (onlinePage > 1) { onlinePage--; return loadOnlineUsers(); }
+      }
+      if (error){ container.textContent = 'Failed to load'; return; }
+
+      if (!data?.length){
+        container.textContent = 'No online users in last 2 minutes.';
+        setPageInfo('online-page-info', onlinePage, count || 0);
+        return;
+      }
+
+      const toIST = (iso)=>{
+        const t = Date.parse(iso||''); if (isNaN(t)) return '-';
+        const ist = new Date(t + 5.5*3600*1000);
+        const y=ist.getUTCFullYear(), m=String(ist.getUTCMonth()+1).padStart(2,'0'), d=String(ist.getUTCDate()).padStart(2,'0');
+        const hh=String(ist.getUTCHours()).padStart(2,'0'), mm=String(ist.getUTCMinutes()).padStart(2,'0'), ss=String(ist.getUTCSeconds()).padStart(2,'0');
+        return `${y}-${m}-${d} ${hh}:${mm}:${ss} IST`;
+      };
+
+      const rows = data.map(u=>`
+        <tr>
+          <td>${u.email || '-'}</td>
+          <td class="mono">${u.user_id}</td>
+          <td>${toIST(u.last_seen)}</td>
+          <td class="mono" title="${(u.user_agent||'').replace(/"/g,'&quot;')}">${(u.user_agent||'').slice(0,60)}${(u.user_agent||'').length>60?'…':''}</td>
+          <td>${u.ip || '-'}</td>
+        </tr>
+      `).join('');
+
+      container.innerHTML = `
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Email</th><th>User ID</th><th>Last Seen</th><th>User Agent</th><th>IP</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+      setPageInfo('online-page-info', onlinePage, count || 0);
+    }
+
+    /* ==================== 你的既有逻辑（保持不变） ==================== */
+
+    async function loadAll() {
+      const { data } = await supabase.from('bank_info').select('*').eq('id', 1).single();
+      if (data) {
+        document.getElementById('name').value   = data.name || '';
+        document.getElementById('ac').value     = data.ac || '';
+        document.getElementById('ifsc').value   = data.ifsc || '';
+        document.getElementById('upi').value    = data.upi || '';
+        document.getElementById('crypto').value = data.crypto_address || '';
+      }
+      loadRechargeRequests();
+      loadWithdrawRequests();
+      loadTodayBets();
+      refreshWheelTimes();
+      refreshWingoTimes();
+    }
+
+    // Recharge：仅用本表 email 搜索 + 分页
+    async function loadRechargeRequests() {
+      const container = document.getElementById('recharge-requests');
+      const from = (rechargePage - 1) * PAGE_SIZE;
+      const to   = from + PAGE_SIZE - 1;
+
+      let q = supabase
+        .from('recharge_requests')
+        .select('id, user_id, amount, utr, status, created_at, email', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (rechargeQuery) q = q.ilike('email', `%${rechargeQuery}%`);
+
+      const { data, count, error, status } = await q;
+
+      if (status === 416 || (error && error.status === 416)) {
+        if (rechargePage > 1) { rechargePage--; return loadRechargeRequests(); }
+      }
+      if (error) { container.textContent = 'Failed to load'; return; }
+
+      if (!data?.length) {
+        if (rechargePage > 1) { rechargePage--; return loadRechargeRequests(); }
+        container.textContent = 'No recharge requests.';
+        setPageInfo('recharge-page-info', rechargePage, count || 0);
+        return;
+      }
+
+      container.innerHTML = '';
+      for (const item of data) {
+        const emailShow = item.email || item.user_id;
+        const el = document.createElement('div');
+        el.className = 'request-box';
+        el.innerHTML = `
+          <b>${emailShow}</b><br/>
+          UTR: ${item.utr}<br/>
+          Amount: ₹${item.amount}<br/>
+          Status: ${item.status || 'pending'}
+          ${
+            item.status === 'pending'
+              ? `<div class="btn-group">
+                   <button onclick="handleApproveRecharge('${item.id}', '${item.user_id}', ${item.amount})">✅ Allow</button>
+                   <button onclick="handleRejectRecharge('${item.id}')">❌ Reject</button>
+                 </div>` : ''
+          }`;
+        container.appendChild(el);
+      }
+
+      setPageInfo('recharge-page-info', rechargePage, count || 0);
+    }
+
+    window.handleApproveRecharge = async (id, user_id, amount) => {
+      try {
+        await supabase.from('recharge_requests').update({ status: 'approved' }).eq('id', id);
+        const { data: arr, error } = await supabase.from('users').select('balance').eq('id', user_id).limit(1);
+        if (error) throw error;
+        const bal = (arr?.[0]?.balance || 0) + amount;
+        await supabase.from('users').update({ balance: bal }).eq('id', user_id);
+        alert('Recharge approved and balance updated!'); loadRechargeRequests();
+      } catch (e){ alert('Failed: ' + e.message); }
+    };
+    window.handleRejectRecharge = async (id) => {
+      await supabase.from('recharge_requests').update({ status: 'rejected' }).eq('id', id);
+      alert('Recharge rejected.'); loadRechargeRequests();
+    };
+
+    /* ========= AB（1 分钟一期，IST） ========= */
+function abRoundKey(date){
+  const y=date.getFullYear(), m=String(date.getMonth()+1).padStart(2,'0'), d=String(date.getDate()).padStart(2,'0');
+  const h=String(date.getHours()).padStart(2,'0'), min=String(date.getMinutes()).padStart(2,'0');
+  return `${y}${m}${d}${h}${min}`;
+}
+function abCurrentRoundNo(){ const t=getIST(); t.setSeconds(0,0); return abRoundKey(t); }
+function abPreviousRoundNo(){ const t=getIST(); t.setMinutes(t.getMinutes()-1,0,0); return abRoundKey(t); }
+function abNextRoundNo(){ const t=getIST(); t.setMinutes(t.getMinutes()+1,0,0); return abRoundKey(t); }
+
+const abIstNowEl   = document.getElementById('ab-ist-now');
+const abPrevEl     = document.getElementById('ab-prev');
+const abCurrEl     = document.getElementById('ab-curr');
+const abNextEl     = document.getElementById('ab-next');
+const abRoundInput = document.getElementById('ab-round-input');
+const abSideInput  = document.getElementById('ab-side-input');
+const abLeadInput  = document.getElementById('ab-lead-rank');
+const abMatchInput = document.getElementById('ab-match-index');
+const abForceCk    = document.getElementById('ab-force');
+const abMsg        = document.getElementById('ab-last-msg');
+
+function refreshABTimes(){
+  const now = getIST();
+  abIstNowEl.textContent = now.toISOString().replace('T',' ').slice(0,16)+' IST';
+  abPrevEl.textContent = abPreviousRoundNo();
+  abCurrEl.textContent = abCurrentRoundNo();
+  abNextEl.textContent = abNextRoundNo();
+  if (!abRoundInput.value) abRoundInput.value = abPrevEl.textContent;
+}
+document.getElementById('ab-refresh-times').onclick = refreshABTimes;
+document.getElementById('ab-fill-prev').onclick = ()=>{ abRoundInput.value = abPrevEl.textContent; };
+document.getElementById('ab-fill-curr').onclick = ()=>{ abRoundInput.value = abCurrEl.textContent; };
+document.getElementById('ab-fill-next').onclick = ()=>{ abRoundInput.value = abNextEl.textContent; };
+
+/* 保存并结算：调用 Edge Function abadmin_set_result */
+document.getElementById('ab-save').onclick = async () => {
+  try {
+    const round_number = (abRoundInput.value || '').trim() || undefined;
+    const result_side  = (abSideInput.value || '').trim().toLowerCase();
+    if (!['andar','bahar'].includes(result_side)) {
+      return alert('result_side 必须为 andar/bahar');
+    }
+
+    const lead_rank   = parseInt(abLeadInput.value);
+    const match_index = parseInt(abMatchInput.value);
+    const body = { round_number, result_side, force: !!abForceCk.checked };
+    if (Number.isFinite(lead_rank)) body.lead_rank = lead_rank;
+    if (Number.isFinite(match_index)) body.match_index = match_index;
+
+    const { data, error } = await supabase.functions.invoke('abadmin_set_result', { body });
+
+    if (error) {
+      console.error('Edge Function error:', error);
+      alert('❌ Failed: ' + (error.message || JSON.stringify(error)));
+      return;
+    }
+    if (data?.error) {
+      console.error('Function returned error:', data.error);
+      alert('❌ Failed: ' + data.error);
+      return;
+    }
+
+    abMsg.textContent = `✅ Saved & settled: ${data.round_number} → ${data.round?.result_side} | settled ${data.settle?.updated||0} bets`;
+    setTimeout(()=> abMsg.textContent = '', 3000);
+  } catch (e) {
+    console.error('Exception:', e);
+    alert('❌ Exception: ' + (e?.message || e));
+  }
+};
+
+
+
+    // Withdraw（保持你给的版本）
+    async function loadWithdrawRequests() {
+      const container = document.getElementById('withdraw-requests');
+      const from = (withdrawPage - 1) * PAGE_SIZE;
+      const to   = from + PAGE_SIZE - 1;
+
+      let q = supabase
+        .from('withdraw_requests')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (withdrawQuery) q = q.ilike('email', `%${withdrawQuery}%`);
+
+      const { data, count, error, status } = await q;
+
+      if (status === 416 || (error && error.status === 416)) {
+        if (withdrawPage > 1) { withdrawPage--; return loadWithdrawRequests(); }
+      }
+      if (error) { container.textContent = 'Failed to load'; return; }
+
+      container.innerHTML = '';
+      if (!data?.length) {
+        container.textContent = 'No withdraw requests.';
+        setPageInfo('withdraw-page-info', withdrawPage, count || 0);
+        return;
+      }
+
+      const userIds = [...new Set(data.map(r => r.user_id).filter(Boolean))];
+      let userMap = {};
+      if (userIds.length) {
+        const { data: users } = await supabase
+          .from('users').select('id, email, name, ac, ifsc, upi, usdt_address').in('id', userIds);
+        (users || []).forEach(u => { userMap[u.id] = u; });
+      }
+
+      for (const item of data) {
+        const u = userMap[item.user_id] || {};
+        const el = document.createElement('div');
+        el.className = 'request-box';
+        el.innerHTML = `
+          <div><b>${item.email || u.email || item.user_id}</b></div>
+          <div>Amount: ₹${item.amount}</div>
+          <div>Status: ${item.status || 'pending'}</div>
+          <div class="muted" style="margin-top:6px">Saved Withdraw Info:</div>
+          <div class="mono" style="font-size:13px">
+            Name: ${u.name || '-'}<br/>
+            AC: ${u.ac || '-'}<br/>
+            IFSC: ${u.ifsc || '-'}<br/>
+            UPI: ${u.upi || item.upi || '-'}<br/>
+            USDT (TRC20): ${u.usdt_address || '-'}
+          </div>
+          ${
+            item.status === 'pending'
+              ? `<div class="btn-group">
+                   <button onclick="handleApproveWithdraw('${item.id}', '${item.user_id}', ${item.amount})">✅ Allow</button>
+                   <button onclick="handleRejectWithdraw('${item.id}')">❌ Reject</button>
+                 </div>` : ''
+          }`;
+        container.appendChild(el);
+      }
+
+      setPageInfo('withdraw-page-info', withdrawPage, count || 0);
+    }
+
+    window.handleApproveWithdraw = async (id, user_id, amount) => {
+      try {
+        await supabase.from('withdraw_requests').update({ status: 'approved' }).eq('id', id);
+        const { data: arr, error } = await supabase.from('users').select('balance').eq('id', user_id).limit(1);
+        if (error) throw error;
+        const current = arr?.[0]?.balance || 0;
+        if (current < amount) throw new Error('Insufficient balance');
+        await supabase.from('users').update({ balance: current - amount }).eq('id', user_id);
+        alert('Withdrawal approved and balance deducted!'); loadWithdrawRequests();
+      } catch (e) { alert('Failed: ' + e.message); }
+    };
+    window.handleRejectWithdraw = async (id) => {
+      await supabase.from('withdraw_requests').update({ status: 'rejected' }).eq('id', id);
+      alert('Withdraw rejected.'); loadWithdrawRequests();
+    };
+
+    /* ========= 工具：当天 IST 的 UTC 边界 ========= */
+    function getISTDayRangeUTCISO() {
+      const nowUtcMs = Date.now();
+      const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+      const istNowMs = nowUtcMs + IST_OFFSET;
+      const DAY = 24 * 60 * 60 * 1000;
+      const startIstMs = istNowMs - (istNowMs % DAY);
+      const endIstMs   = startIstMs + DAY;
+      return {
+        startUtcIso: new Date(startIstMs - IST_OFFSET).toISOString(),
+        endUtcIso:   new Date(endIstMs   - IST_OFFSET).toISOString()
+      };
+    }
+    const formatIST = (iso)=>{
+      const t = Date.parse(iso||''); if (isNaN(t)) return '-';
+      const ist = new Date(t + 5.5*3600*1000);
+      const y=ist.getUTCFullYear(), m=String(ist.getUTCMonth()+1).padStart(2,'0'), d=String(ist.getUTCDate()).padStart(2,'0');
+      const hh=String(ist.getUTCHours()).padStart(2,'0'), mm=String(ist.getUTCMinutes()).padStart(2,'0'), ss=String(ist.getUTCSeconds()).padStart(2,'0');
+      return `${y}-${m}-${d} ${hh}:${mm}:${ss} IST`;
+    };
+
+    /* ========= 今日下注：合并 Dice / AB / Mini Wheel / WinGo ========= */
+    async function loadTodayBets() {
+      const container = document.getElementById('today-bets');
+      container.textContent = 'Loading...';
+
+      const emailFilter = (document.getElementById('bet-email-filter').value || '').trim().toLowerCase();
+      const { startUtcIso, endUtcIso } = getISTDayRangeUTCISO();
+
+      const [diceRes, abRes, wheelRes, wingoRes] = await Promise.all([
+        supabase.from('bets').select('created_at, email, user_id, round_number, bet_type, choice, amount, odds, status, payout')
+                 .gte('created_at', startUtcIso).lt('created_at', endUtcIso)
+                 .order('created_at', { ascending: false }).limit(1000),
+        supabase.from('ab_bets').select('created_at, email, user_id, round_number, side, amount, odds, status, payout')
+                 .gte('created_at', startUtcIso).lt('created_at', endUtcIso)
+                 .order('created_at', { ascending: false }).limit(1000),
+        supabase.from('wheel_bets').select('created_at, email, user_id, round_number, bet_type, pick, multiplier, amount, status, payout')
+                 .gte('created_at', startUtcIso).lt('created_at', endUtcIso)
+                 .order('created_at', { ascending: false }).limit(1000),
+        supabase.from('color2m_bets').select('created_at, email, user_id, round_number, bet_type, choice, amount, odds, status, payout')
+                 .gte('created_at', startUtcIso).lt('created_at', endUtcIso)
+                 .order('created_at', { ascending: false }).limit(1000)
+      ]);
+
+      const dice  = diceRes.data  || [];
+      const ab    = abRes.data    || [];
+      const wheel = wheelRes.data || [];
+      const wingo = wingoRes.data || [];
+      if (diceRes.error)  console.warn('bets error:', diceRes.error.message);
+      if (abRes.error)    console.warn('ab_bets error:', abRes.error.message);
+      if (wheelRes.error) console.warn('wheel_bets error:', wheelRes.error.message);
+      if (wingoRes.error) console.warn('color2m_bets error:', wingoRes.error.message);
+
+      const missingIds = new Set();
+      [...dice, ...ab, ...wheel, ...wingo].forEach(r=>{
+        if (!r?.email && r?.user_id) missingIds.add(r.user_id);
+      });
+      let userMap = {};
+      if (missingIds.size){
+        const { data: users } = await supabase.from('users').select('id,email').in('id', Array.from(missingIds));
+        (users || []).forEach(u=> userMap[u.id]=u.email);
+      }
+      const getEmail = (row)=> row.email || userMap[row.user_id] || row.user_id || '-';
+
+      const rows = [];
+
+      // Dice
+      for (const b of dice){
+        const email = getEmail(b);
+        if (emailFilter && !String(email).toLowerCase().includes(emailFilter)) continue;
+        const betText = b.bet_type === 'number'
+          ? `Number ${b.choice ?? '-'}`
+          : (b.bet_type === 'big' ? 'Big (4-6)' : 'Small (1-3)');
+        rows.push({ game:'Dice', email, round:b.round_number||'-', bet:betText,
+          amount: Number(b.amount||0), odds: Number(b.odds||0), status: b.status||'-', payout: Number(b.payout||0), ts: b.created_at });
+      }
+
+      // Andar Bahar
+      for (const b of ab){
+        const email = getEmail(b);
+        if (emailFilter && !String(email).toLowerCase().includes(emailFilter)) continue;
+        const side = (b.side||'').toLowerCase();
+        const label = side==='andar' ? 'Andar' : side==='bahar' ? 'Bahar' : (b.side||'-');
+        rows.push({ game:'AB', email, round:b.round_number||'-', bet:label,
+          amount: Number(b.amount||0), odds: Number(b.odds||0), status: b.status||'-', payout: Number(b.payout||0), ts: b.created_at });
+      }
+
+      // Mini Wheel
+      for (const b of wheel){
+        const email = getEmail(b);
+        if (emailFilter && !String(email).toLowerCase().includes(emailFilter)) continue;
+        let betText;
+        if (b.bet_type === 'range')       betText = Number(b.pick)===0 ? 'Small 3–10' : 'Big 11–18';
+        else if (b.bet_type === 'number') betText = `Number ${b.pick ?? '-'}`;
+        else                              betText = `${b.bet_type||'-'} ${b.pick??''}`.trim();
+        rows.push({ game:'Mini Wheel', email, round:b.round_number||'-', bet:betText,
+          amount: Number(b.amount||0), odds: Number(b.multiplier||0), status: b.status||'-', payout: Number(b.payout||0), ts: b.created_at });
+      }
+
+      // WinGo
+      for (const b of wingo){
+        const email = getEmail(b);
+        if (emailFilter && !String(email).toLowerCase().includes(emailFilter)) continue;
+        const kind = (b.bet_type||'').toLowerCase();
+        let betText = '-';
+        if (kind==='number') betText=`Number ${b.choice ?? '-'}`;
+        else if (kind==='color') betText=String(b.choice||'-').replace(/^[a-z]/, s=>s.toUpperCase());
+        else if (kind==='size')  betText=String(b.choice||'-').toLowerCase()==='big' ? 'Big' : 'Small';
+        rows.push({ game:'WinGo', email, round:b.round_number||'-', bet:betText,
+          amount: Number(b.amount||0), odds: Number(b.odds||0), status: b.status||'-', payout: Number(b.payout||0), ts: b.created_at });
+      }
+
+      if (!rows.length) { container.textContent = 'No bets today.'; return; }
+
+      rows.sort((a,b)=> a.ts>b.ts ? -1 : 1);
+      const htmlRows = rows.map(r=>`
+        <tr>
+          <td>${r.email}</td>
+          <td>${r.game}</td>
+          <td>${r.round}</td>
+          <td>${r.bet}</td>
+          <td>₹${r.amount.toFixed(2)}</td>
+          <td>×${(r.odds||0).toFixed(2)}</td>
+          <td>${r.status}</td>
+          <td>₹${(r.payout||0).toFixed(2)}</td>
+          <td>${formatIST(r.ts)}</td>
+        </tr>
+      `).join('');
+
+      container.innerHTML = `
+        <div class="muted">Showing ${rows.length} records (IST day)</div>
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th><th>Game</th><th>Round</th><th>Bet</th>
+                <th>Amount</th><th>Odds</th><th>Status</th><th>Payout</th><th>Time (IST)</th>
+              </tr>
+            </thead>
+            <tbody>${htmlRows}</tbody>
+          </table>
+        </div>`;
+    }
+    document.getElementById('bets-reload').onclick = loadTodayBets;
+
+    // 旧骰子手动结果
+    document.getElementById('set-result-btn').onclick = async () => {
+      const round = document.getElementById('manual-round').value.trim();
+      const result = parseInt(document.getElementById('manual-result').value);
+      if (!round || isNaN(result) || result < 1 || result > 6) return alert('Invalid input');
+      const { data: existing, error: fetchError } = await supabase
+        .from('game_rounds').select('round_number').eq('round_number', round).maybeSingle();
+      if (fetchError) return alert('Query failed: ' + fetchError.message);
+      if (existing) {
+        const { error: updateError } = await supabase
+          .from('game_rounds').update({ result, is_manual: true }).eq('round_number', round);
+        if (updateError) alert('Update failed: ' + updateError.message);
+        else alert(`✅ Updated result for ${round} = ${result}`);
+      } else {
+        const { error: insertError } = await supabase
+          .from('game_rounds').insert([{ round_number: round, result, is_manual: true, created_at: new Date().toISOString() }]);
+        if (insertError) alert('Insert failed: ' + insertError.message);
+        else alert(`✅ Inserted result for ${round} = ${result}`);
+      }
+    };
+
+    
+
+    // Wheel 工具 & 控制（原样）
+    const W_NUMBERS = Array.from({length:16}, (_,i)=>i+3);
+    const W_ODDS = new Map([[3,180],[18,180],[4,60],[17,60],[5,30],[16,30],[6,18],[15,18],[7,12],[14,12],[8,9],[13,9],[9,8],[12,8],[10,7],[11,7]]);
+    function getIST(){ const now=new Date(); const utc=now.getTime()+now.getTimezoneOffset()*60000; return new Date(utc+5.5*3600*1000); }
+    function bucketStart2mIST(d){ const t=new Date(d); const m=t.getMinutes(); t.setMinutes(m-(m%2), 0, 0); return t; }
+    function roundKey(date){ const y=date.getFullYear(), m=String(date.getMonth()+1).padStart(2,'0'), d=String(date.getDate()).padStart(2,'0'); const h=String(date.getHours()).padStart(2,'0'), min=String(date.getMinutes()).padStart(2,'0'); return `${y}${m}${d}${h}${min}`; }
+    function currentRoundNo(){ return roundKey(bucketStart2mIST(getIST())); }
+    function previousRoundNo(){ const cs=bucketStart2mIST(getIST()); return roundKey(new Date(cs.getTime()-120000)); }
+    function nextRoundNo(){ const cs=bucketStart2mIST(getIST()); return roundKey(new Date(cs.getTime()+120000)); }
+
+    const wheelIstNowEl=document.getElementById('wheel-ist-now');
+    const wheelPrevEl=document.getElementById('wheel-prev');
+    const wheelCurrEl=document.getElementById('wheel-curr');
+    const wheelNextEl=document.getElementById('wheel-next');
+    const wheelRoundInput=document.getElementById('wheel-round-input');
+    const wheelNumInput=document.getElementById('wheel-number-input');
+    const wheelMultInput=document.getElementById('wheel-multiplier');
+    const wheelIndexInput=document.getElementById('wheel-index');
+
+    function refreshWheelTimes(){
+      const now=getIST();
+      wheelIstNowEl.textContent = now.toISOString().replace('T',' ').slice(0,16)+' IST';
+      wheelPrevEl.textContent = previousRoundNo();
+      wheelCurrEl.textContent = currentRoundNo();
+      wheelNextEl.textContent = nextRoundNo();
+      wheelRoundInput.value = wheelPrevEl.textContent;
+    }
+    document.getElementById('wheel-refresh-times').onclick = refreshWheelTimes;
+    document.getElementById('wheel-fill-prev').onclick = ()=> wheelRoundInput.value = wheelPrevEl.textContent;
+    document.getElementById('wheel-fill-curr').onclick = ()=> wheelRoundInput.value = wheelCurrEl.textContent;
+    document.getElementById('wheel-fill-next').onclick = ()=> wheelRoundInput.value = wheelNextEl.textContent;
+
+    function recalcWheelFields(){
+      const n = parseInt(wheelNumInput.value);
+      if (Number.isFinite(n) && n>=3 && n<=18){
+        wheelMultInput.value = W_ODDS.get(n) ? `×${W_ODDS.get(n)}` : '';
+        const idx = W_NUMBERS.indexOf(n);
+        wheelIndexInput.value = idx >= 0 ? String(idx) : '';
+      }else{
+        wheelMultInput.value = '';
+        wheelIndexInput.value = '';
+      }
+    }
+    wheelNumInput.addEventListener('input', recalcWheelFields);
+
+    document.getElementById('wheel-save').onclick = async ()=>{
+      const round = (wheelRoundInput.value || '').trim();
+      const n = parseInt(wheelNumInput.value);
+      if (!round) return alert('Round required');
+      if (!Number.isFinite(n) || n<3 || n>18) return alert('Result number must be 3–18');
+      const idx = W_NUMBERS.indexOf(n); const mult = W_ODDS.get(n);
+      if (idx<0 || !mult) return alert('Invalid number');
+      const row = { round_number: round, result_index: idx, result_number: n, result_multiplier: mult, is_manual: true };
+      const { error } = await supabase.from('wheel_rounds').upsert([row]);
+      if (error) return alert('Save failed: ' + error.message);
+      alert(`✅ Saved: ${round} → ${n} (×${mult})`);
+    };
+
+    // Users（隐藏 ID + 分页 20/页）
+    async function loadUsers(){
+      const container = document.getElementById('users-table');
+      const emailFilter = (document.getElementById('users-email-filter').value || '').trim();
+      const from = (usersPage - 1) * PAGE_SIZE;
+      const to   = from + PAGE_SIZE - 1;
+
+      let q = supabase.from('users')
+        .select('id, email, balance, turnover_remaining, vip_level, name, ac, ifsc, upi', { count:'exact' })
+        .order('email', { ascending: true })
+        .range(from, to);
+
+      if (emailFilter) q = q.ilike('email', `%${emailFilter}%`);
+
+      const { data, count, error, status } = await q;
+
+      if (status === 416 || (error && error.status === 416)) {
+        if (usersPage > 1) { usersPage--; return loadUsers(); }
+      }
+      if (error) { container.textContent = 'Failed to load users: ' + error.message; return; }
+      if (!data?.length) {
+        if (usersPage > 1) { usersPage--; return loadUsers(); }
+        container.textContent = 'No users.';
+        setPageInfo('users-page-info', usersPage, count||0);
+        return;
+      }
+
+      const rows = data.map(u => `
+        <tr>
+          <td>${u.email || '-'}</td>
+          <td>₹${Number(u.balance||0).toFixed(2)}</td>
+          <td>₹${Number(u.turnover_remaining||0).toFixed(2)}</td>
+          <td>${Number(u.vip_level||0)}</td>
+          <td>${u.name || '-'}</td>
+          <td>${u.ac || '-'}</td>
+          <td>${u.ifsc || '-'}</td>
+          <td>${u.upi || '-'}</td>
+          <td>
+            <div class="btn-group" style="display:flex;gap:6px;flex-wrap:wrap">
+              <button style="width:auto" onclick="adjustBalance('${u.id}', 'add')">➕ Add</button>
+              <button style="width:auto;background:#ef4444" onclick="adjustBalance('${u.id}', 'sub')">➖ Deduct</button>
+              <button style="width:auto;background:#92400e" onclick="setVipLevel('${u.id}', ${Number(u.vip_level||0)})">⭐ Set VIP</button>
+              <button style="width:auto;background:#0ea5e9" onclick="adjustTurnover('${u.id}')">🔁 Turnover +/-</button>
+              <button style="width:auto;background:#16a34a" onclick="grantBonusByEmail('${u.email || ''}')">🎁 Bonus</button>
+              <!-- 新增：为该用户设置密码 -->
+              <button style="width:auto;background:#374151" onclick="openSetPassword('${u.id}', '${(u.email||'').replace(/'/g, '\\\'')}')">🔒 Set Pwd</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+
+      container.innerHTML = `
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Email</th><th>Balance</th><th>Turnover</th><th>VIP</th>
+                <th>Name</th><th>AC</th><th>IFSC</th><th>UPI</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+
+      setPageInfo('users-page-info', usersPage, count||0);
+    }
+    document.getElementById('users-reload').onclick = ()=>{ usersPage = 1; loadUsers(); };
+
+    window.grantBonusByEmail = async (targetEmail) => {
+      let email = (targetEmail || '').trim();
+      if (!email) {
+        email = prompt('User email to grant bonus:') || '';
+        email = email.trim();
+      }
+      if (!email) return alert('Email is required.');
+
+      let val = prompt('Bonus amount:');
+      if (val === null) return;
+      const amt = Number(val);
+      if (!amt || amt <= 0) return alert('Invalid amount');
+
+      const reason = prompt('Reason (optional):') || null;
+      const exp = prompt('Expires in days? (optional, leave blank = no expiry)');
+      let expires_at = null;
+      if (exp && !isNaN(Number(exp)) && Number(exp) > 0) {
+        const d = new Date(); d.setDate(d.getDate() + Number(exp));
+        expires_at = d.toISOString();
+      }
+
+      const { error } = await supabase
+        .from('bonuses')
+        .insert([{ email, amount: amt, reason, expires_at }]);
+
+      if (error) return alert('Create bonus failed: ' + error.message);
+      alert(`✅ Bonus created for ${email}: ₹${amt.toFixed(2)}`);
+    };
+
+    window.adjustBalance = async (user_id, action) => {
+      let val = prompt(action === 'add' ? 'Enter amount to ADD:' : 'Enter amount to DEDUCT:');
+      if (val === null) return;
+      const amt = Number(val);
+      if (!amt || amt <= 0) return alert('Invalid amount');
+      const adjustRollover = confirm('Also adjust turnover requirement?');
+
+      const { data: urow, error: rerr } = await supabase
+        .from('users').select('balance, turnover_remaining').eq('id', user_id).single();
+      if (rerr) return alert('Load user failed: ' + rerr.message);
+
+      let newBalance = Number(urow?.balance || 0);
+      let newTurn    = Number(urow?.turnover_remaining || 0);
+
+      if (action === 'add') { newBalance += amt; if (adjustRollover) newTurn += amt; }
+      else {
+        if (newBalance < amt) return alert('Balance would go negative');
+        newBalance -= amt; if (adjustRollover) newTurn = Math.max(newTurn - amt, 0);
+      }
+
+      const { error: uperr } = await supabase
+        .from('users').update({ balance: newBalance, turnover_remaining: newTurn }).eq('id', user_id);
+      if (uperr) return alert('Update failed: ' + uperr.message);
+
+      alert('Updated.'); loadUsers();
+    };
+
+    window.adjustTurnover = async (user_id) => {
+      let val = prompt('Enter turnover delta (positive = increase, negative = decrease):');
+      if (val === null) return;
+      const delta = parseFloat(val);
+      if (!Number.isFinite(delta) || delta === 0) return alert('Invalid number');
+
+      const { data: urow, error: rerr } = await supabase
+        .from('users').select('turnover_remaining').eq('id', user_id).single();
+      if (rerr) return alert('Load user failed: ' + rerr.message);
+
+      const curr = Number(urow?.turnover_remaining || 0);
+      let next = curr + delta;
+      if (next < 0) next = 0;
+
+      if (!confirm(`Confirm update turnover:\n\nCurrent: ₹${curr.toFixed(2)}\nDelta: ${delta > 0 ? '+' : ''}${delta}\nNew: ₹${next.toFixed(2)}`)) {
+        return;
+      }
+
+      const { error: uperr } = await supabase
+        .from('users').update({ turnover_remaining: next }).eq('id', user_id);
+      if (uperr) return alert('Update failed: ' + uperr.message);
+
+      alert('Turnover updated.');
+      loadUsers();
+    };
+
+    window.setVipLevel = async (user_id, currentVip) => {
+      let val = prompt(`Set VIP level (current: ${currentVip}). Enter 0-99:`, String(currentVip));
+      if (val === null) return;
+      const lvl = Number(val);
+      if (!Number.isInteger(lvl) || lvl < 0 || lvl > 99) return alert('Invalid level (0-99)');
+      const { error } = await supabase.from('users').update({ vip_level: lvl }).eq('id', user_id);
+      if (error) return alert('Update failed: ' + error.message);
+      alert('VIP updated.'); loadUsers();
+    };
+
+    // === 新增：管理员直改密码（前端调用 Edge Function） ===
+    let _setPwdTarget = { user_id: null, email: null };
+    window.openSetPassword = (user_id, email) => {
+      _setPwdTarget = { user_id, email: email || '-' };
+      document.getElementById('setPwdTargetInfo').textContent = `Target: ${_setPwdTarget.email} (${_setPwdTarget.user_id})`;
+      document.getElementById('setPwdNew').value = '';
+      document.getElementById('setPwdBackdrop').style.display = 'flex';
+    };
+    document.getElementById('setPwdCancel').onclick = () => {
+      document.getElementById('setPwdBackdrop').style.display = 'none';
+    };
+    document.getElementById('setPwdConfirm').onclick = async () => {
+      const pwd = document.getElementById('setPwdNew').value;
+      if (!pwd || pwd.length < 6) { alert('Password too short (min 6)'); return; }
+
+      // 通过 supabase.functions.invoke 调用 Edge Function（会自动带上当前管理员会话）
+      const { data, error } = await supabase.functions.invoke('admin_set_password', {
+        body: { user_id: _setPwdTarget.user_id, new_password: pwd }
+      });
+
+      if (error) { alert('Failed: ' + (error.message || JSON.stringify(error))); return; }
+      alert('✅ Password updated.');
+      document.getElementById('setPwdBackdrop').style.display = 'none';
+    };
+    // === 新增结束 ===
+
+    // Bank Info 保存
+    async function saveBankInfo(){
+      const btn = document.getElementById('save-bank-btn');
+      const name   = (document.getElementById('name').value   || '').trim();
+      const ac     = (document.getElementById('ac').value     || '').trim();
+      const ifsc   = (document.getElementById('ifsc').value   || '').trim();
+      const upi    = (document.getElementById('upi').value    || '').trim();
+      const crypto = (document.getElementById('crypto').value || '').trim();
+
+      btn.disabled = true; const oldTxt = btn.textContent; btn.textContent = 'Saving...';
+
+      const payload = { id: 1, name, ac, ifsc, upi, crypto_address: crypto };
+
+      const { error } = await supabase
+        .from('bank_info')
+        .upsert([payload]);
+
+      btn.disabled = false; btn.textContent = oldTxt;
+
+      if (error) {
+        console.error(error);
+        alert('Save failed: ' + error.message);
+      } else {
+        alert('✅ Saved');
+      }
+    }
+    document.getElementById('save-bank-btn').onclick = saveBankInfo;
+
+    /* ===== WinGo 控制：只保存开奖结果 0–9（不结算） ===== */
+    const wingoIstNowEl   = document.getElementById('wingo-ist-now');
+    const wingoPrevEl     = document.getElementById('wingo-prev');
+    const wingoCurrEl     = document.getElementById('wingo-curr');
+    const wingoNextEl     = document.getElementById('wingo-next');
+    const wingoRoundInput = document.getElementById('wingo-round-input');
+    const wingoNumInput   = document.getElementById('wingo-number-input');
+    const wingoMsg        = document.getElementById('wingo-last-msg');
+
+    function refreshWingoTimes(){
+      const now = getIST();
+      wingoIstNowEl.textContent = now.toISOString().replace('T',' ').slice(0,16)+' IST';
+      wingoPrevEl.textContent = previousRoundNo();
+      wingoCurrEl.textContent = currentRoundNo();
+      wingoNextEl.textContent = nextRoundNo();
+      if (!wingoRoundInput.value) wingoRoundInput.value = wingoPrevEl.textContent;
+    }
+    document.getElementById('wingo-refresh-times').onclick = refreshWingoTimes;
+    document.getElementById('wingo-fill-prev').onclick = ()=>{ wingoRoundInput.value = wingoPrevEl.textContent; };
+    document.getElementById('wingo-fill-curr').onclick = ()=>{ wingoRoundInput.value = wingoCurrEl.textContent; };
+    document.getElementById('wingo-fill-next').onclick = ()=>{ wingoRoundInput.value = wingoNextEl.textContent; };
+
+    document.getElementById('wingo-save').onclick = async ()=>{
+      const round = (wingoRoundInput.value || '').trim();
+      const n = parseInt(wingoNumInput.value);
+      if (!round) return alert('Round required');
+      if (!Number.isFinite(n) || n<0 || n>9) return alert('Result number must be 0–9');
+
+      const { error: upErr } = await supabase
+        .from('color2m_rounds')
+        .upsert([{ round_number: round, result_number: n, is_manual: true }]);
+      if (upErr) return alert('Save failed: ' + upErr.message);
+
+      const msg =
+        Number(round) <= Number(previousRoundNo())
+          ? `✅ Saved. (Past round) System auto-settlement may run immediately or on next tick.`
+          : `✅ Saved. System will auto-settle at the draw time.`;
+      wingoMsg.textContent = `${msg}  [${round} → ${n}]`;
+    };
+
+    // 初始化默认
+    refreshWheelTimes();
+    refreshWingoTimes();
+  </script>
+</body>
+</html>

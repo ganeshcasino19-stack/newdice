@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Lucky Dice Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <script type="module" src="./supabase-config.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{ --bg1:#fff7ec; --bg2:#e6f2ff; --card:#fff; --text:#222; --muted:#666; --primary:#0d6efd; --primary-pressed:#0b5ed7; --success:#2e7d32; --danger:#d32f2f; --surface:#f6f8fb; --radius:14px; --shadow:0 6px 18px rgba(0,0,0,.08); }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{ margin:0; font-family:'Poppins',sans-serif; color:var(--text); background:linear-gradient(180deg,var(--bg1),var(--bg2)); padding-bottom:94px; }
+    .container{max-width:720px;margin:0 auto;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+    h2{margin:6px 0 14px;text-align:center;color:#ff6f00}
+    .card{ background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 14px; margin-bottom:14px; }
+    .muted{color:var(--muted); font-size:12px}
+    .userbar{display:flex; align-items:center; justify-content:space-between; gap:10px}
+    .balance{font-weight:700; color:var(--success)}
+    .btn{ display:inline-flex; align-items:center; justify-content:center; padding:12px 14px; border-radius:12px; border:0; cursor:pointer; background:var(--primary); color:#fff; font-weight:700; min-height:46px; }
+    .btn:active{background:var(--primary-pressed)} .btn.secondary{background:#eef4ff; color:#1e3a8a} .btn.ghost{background:#fff; color:#111; border:1px solid #e6eaf2}
+    .seg{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px}
+    .seg .chip{ padding:10px 12px; text-align:center; border-radius:12px; background:#f2f5fa; border:1px solid #e6eaf2; font-weight:600; cursor:pointer; }
+    .seg .chip.active{background:#eaf2ff; border-color:#cfe0ff; color:#0b5ed7}
+    .grid6{display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-top:8px}
+    .num{padding:12px 0; text-align:center; border-radius:12px; background:#f7f9fc; border:1px solid #e6eaf2; font-weight:700; cursor:pointer}
+    .num.active{background:#fff0e6; border-color:#ffc999}
+    .quick{display:flex; gap:8px; flex-wrap:wrap}
+    .qchip{padding:8px 10px; border-radius:10px; background:#f2f5fa; border:1px solid #e6eaf2; cursor:pointer}
+    .qchip:active{transform:scale(.98)}
+    .result-box{display:flex; flex-direction:column; align-items:center; gap:8px}
+    .result-big{font-size:28px; font-weight:800}
+    .countdown{font-weight:700}
+    .cardsver{display:block}
+    .tablever{display:none}
+    @media(min-width:800px){
+      .cardsver{display:none}
+      .tablever{display:table}
+      .tablewrap{overflow:auto}
+      .tablever{width:100%; border-collapse:collapse}
+      th,td{padding:8px 6px; border-bottom:1px solid #eee; font-size:14px; text-align:left}
+      th{font-weight:700}
+    }
+    .betbar{ position:fixed; left:0; right:0; bottom:0; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:rgba(255,255,255,.85); backdrop-filter: blur(10px); border-top:1px solid #e8edf6; display:flex; gap:10px; align-items:center; }
+    .betbar input{ flex:1; height:46px; border-radius:12px; border:1px solid #e1e6f0; padding:0 12px; font-size:16px; background:#fff }
+    .betbar .btn{min-width:140px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🎲 Lucky Dice</h2>
+
+    <div class="card">
+      <div class="userbar">
+        <div>
+          <div class="muted">Logged in as</div>
+          <div id="user-email" style="font-weight:700">—</div>
+        </div>
+        <div class="balance">₹<span id="balance">0</span></div>
+        <button id="lobby-btn" class="btn ghost">Lobby</button>
+        <button id="logout-btn" class="btn secondary">Logout</button>
+      </div>
+      <div class="muted" style="margin-top:8px">* Bets close in the last 10 seconds of each minute.</div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 6px">🎯 Select Bet</h3>
+      <div class="seg" id="mode-seg">
+        <div class="chip active" data-mode="big">Big (4–6) ×<span id="odds-big">2.00</span></div>
+        <div class="chip" data-mode="small">Small (1–3) ×<span id="odds-small">2.00</span></div>
+      </div>
+      <div class="muted" style="margin-top:8px">Or choose exact number:</div>
+      <div class="grid6" id="num-grid">
+        <div class="num" data-n="1">1 ×<span class="o">6.00</span></div>
+        <div class="num" data-n="2">2 ×<span class="o">6.00</span></div>
+        <div class="num" data-n="3">3 ×<span class="o">6.00</span></div>
+        <div class="num" data-n="4">4 ×<span class="o">6.00</span></div>
+        <div class="num" data-n="5">5 ×<span class="o">6.00</span></div>
+        <div class="num" data-n="6">6 ×<span class="o">6.00</span></div>
+      </div>
+      <div style="margin-top:10px" class="quick" id="quick-amt">
+        <div class="qchip" data-v="100">₹100</div>
+        <div class="qchip" data-v="200">₹200</div>
+        <div class="qchip" data-v="500">₹500</div>
+        <div class="qchip" data-v="1000">₹1000</div>
+      </div>
+    </div>
+
+    <!-- 结果：只显示上期 + 当前期号 -->
+    <div class="card">
+      <div class="result-box">
+        <div class="muted">Current Round</div>
+        <div id="round-number" style="font-weight:700">—</div>
+
+        <div class="muted" style="margin-top:6px">Last Round : Result</div>
+        <div id="prev-line" class="result-big">—</div>
+
+        <div class="muted" style="margin-top:6px">Time Left</div>
+        <div id="countdown" class="countdown">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 6px">🧾 My Last 10 Bets</h3>
+      <div id="my-bets" class="cardsver">Loading…</div>
+      <div class="tablewrap">
+        <table class="tablever">
+          <thead>
+            <tr><th>Round</th><th>Bet</th><th>Amount</th><th>Result</th><th>Status</th><th>Payout</th></tr>
+          </thead>
+          <tbody id="my-bets-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="betbar">
+    <input type="number" id="bet-amount" placeholder="Amount ₹" inputmode="decimal" />
+    <button id="bet-btn" class="btn">Submit Bet</button>
+  </div>
+
+  <script type="module">
+    import { supabase } from './supabase-config.js';
+
+    const BIG_ODDS=2.00, SMALL_ODDS=2.00, NUMBER_ODDS=6.00;
+    const CLOSE_BUFFER=10;
+
+    let currentUser=null;
+    const emailEl=document.getElementById('user-email');
+    const balanceEl=document.getElementById('balance');
+    const roundNumber=document.getElementById('round-number');
+    const prevLineEl=document.getElementById('prev-line');
+    const logoutBtn=document.getElementById('logout-btn');
+    const lobbyBtn=document.getElementById('lobby-btn');
+    const betBtn=document.getElementById('bet-btn');
+    const betAmountEl=document.getElementById('bet-amount');
+    const countEl=document.getElementById('countdown');
+
+    document.getElementById('odds-big').textContent=BIG_ODDS.toFixed(2);
+    document.getElementById('odds-small').textContent=SMALL_ODDS.toFixed(2);
+    document.querySelectorAll('#num-grid .o').forEach(el=>el.textContent=NUMBER_ODDS.toFixed(2));
+
+    function getIST(){const now=new Date();const utc=now.getTime()+now.getTimezoneOffset()*60000;return new Date(utc+5.5*3600000);}
+    function currentRoundNo(){const n=getIST();return `${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}${String(n.getHours()).padStart(2,'0')}${String(n.getMinutes()).padStart(2,'0')}`;}
+    function prevRoundNo(){const n=getIST();n.setMinutes(n.getMinutes()-1,0,0);return `${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}${String(n.getHours()).padStart(2,'0')}${String(n.getMinutes()).padStart(2,'0')}`;}
+
+    lobbyBtn.onclick=()=>location.href='./index.html';
+    logoutBtn.onclick=async()=>{await supabase.auth.signOut();location.href='./index.html';};
+
+    supabase.auth.getUser().then(async({data})=>{
+      if(!data?.user){ alert('Please login first.'); location.href='./index.html'; return; }
+      currentUser=data.user;
+      emailEl.textContent=currentUser.email;
+      await supabase.from('users').upsert([{ id:currentUser.id, email:currentUser.email }]);
+      await loadBalance();
+      await loadLatestResult();
+      await loadMyLastBets();
+      startTicker();
+    });
+
+    async function loadBalance(){
+      const { data } = await supabase.from('users').select('balance').eq('id', currentUser.id).single();
+      balanceEl.textContent = data?.balance ?? 0;
+    }
+
+    async function loadPrevLine(){
+      const prevRound = prevRoundNo();
+      const { data } = await supabase.from('game_rounds').select('result').eq('round_number', prevRound).maybeSingle();
+      const res = (data && data.result) ? data.result : '—';
+      prevLineEl.textContent = `${prevRound} : ${res}`;
+    }
+    async function loadLatestResult(){
+      roundNumber.textContent = currentRoundNo();
+      await loadPrevLine();
+    }
+
+    function startTicker(){
+      setInterval(async ()=>{
+        const now = getIST();
+        const secNow = now.getSeconds();
+        const remaining = 60 - secNow;
+        countEl.textContent = `${remaining}s`;
+
+        if (remaining <= CLOSE_BUFFER) { betBtn.disabled = true; betBtn.textContent = 'Bet Closed'; }
+        else { betBtn.disabled = false; betBtn.textContent = 'Submit Bet'; }
+
+        if (secNow === 0) {
+          await loadLatestResult();
+          await loadMyLastBets();
+          await loadBalance();
+        }
+        roundNumber.textContent = currentRoundNo();
+      }, 500);
+    }
+
+    // —— 这里是关键：即使后台提前把本期设为 won/lost，我们也把本期强制显示为 pending —— //
+    function maskIfCurrentRound(b){
+      const nowRound = currentRoundNo();
+      const isCurrent = b.round_number === nowRound;
+      if (isCurrent) {
+        return { ...b, status: 'pending', payout: 0 }; // 强制遮蔽
+      }
+      return b;
+    }
+
+    async function loadMyLastBets() {
+      if (!currentUser) return;
+      const cardsWrap = document.getElementById('my-bets');
+      const tbody = document.getElementById('my-bets-tbody');
+
+      const { data: bets, error } = await supabase
+        .from('bets')
+        .select('round_number, bet_type, choice, amount, status, payout, created_at')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('loadMyLastBets error:', error);
+        cardsWrap.innerHTML = `<div class="muted">Load failed.</div>`;
+        if (tbody) tbody.innerHTML = '';
+        return;
+      }
+
+      // 强制遮蔽当前期的状态，避免提前显示
+      const safeBets = (bets || []).map(maskIfCurrentRound);
+
+      const rounds = [...new Set(safeBets.map(b => b.round_number))];
+      let resultMap = {};
+      if (rounds.length) {
+        const { data: rs } = await supabase
+          .from('game_rounds')
+          .select('round_number, result')
+          .in('round_number', rounds);
+        (rs || []).forEach(r => { resultMap[r.round_number] = r.result; });
+      }
+
+      const rows = safeBets.map(b => {
+        const betLabel = b.bet_type === 'number' ? `Number ${b.choice}` :
+                         b.bet_type === 'big'    ? 'Big (4–6)'          : 'Small (1–3)';
+        const showRes = b.status !== 'pending';
+        const res = showRes ? (resultMap[b.round_number] ?? '—') : '—';
+        const payout = showRes ? Number(b.payout || 0).toFixed(2) : '0.00';
+        return { round: b.round_number, bet: betLabel, amount: Number(b.amount).toFixed(2), res, status: b.status, payout };
+      });
+
+      // 手机卡片
+      if (!rows.length) {
+        cardsWrap.innerHTML = `<div class="muted">No recent bets.</div>`;
+      } else {
+        cardsWrap.innerHTML = rows.map(it => `
+          <div class="betcard" style="border:1px solid #eef1f6;border-radius:12px;padding:10px 12px;background:#fbfdff;display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;margin-bottom:10px">
+            <div>
+              <div style="font-size:13px"><b>Round:</b> ${it.round}</div>
+              <div style="font-size:13px"><b>Bet:</b> ${it.bet} · ₹${it.amount}</div>
+              <div style="font-size:13px"><b>Result:</b> ${it.res} · <b>Status:</b> ${it.status}</div>
+            </div>
+            <div style="font-weight:700;${it.status==='won'?'color:#2e7d32':'color:#d32f2f'}">₹${it.payout}</div>
+          </div>`).join('');
+      }
+
+      // 桌面表格
+      if (tbody) {
+        tbody.innerHTML = rows.map(it => `
+          <tr>
+            <td>${it.round}</td>
+            <td>${it.bet}</td>
+            <td>₹${it.amount}</td>
+            <td>${it.res}</td>
+            <td>${it.status}</td>
+            <td>₹${it.payout}</td>
+          </tr>`).join('');
+      }
+    }
+
+    window.addEventListener('resize', () => loadMyLastBets());
+
+    // 下注
+    let currentBetType='big', currentChoice=null;
+    document.querySelectorAll('#mode-seg .chip').forEach(ch=>{
+      ch.onclick=()=>{
+        document.querySelectorAll('#mode-seg .chip').forEach(x=>x.classList.remove('active'));
+        ch.classList.add('active'); currentBetType=ch.dataset.mode; currentChoice=null;
+        document.querySelectorAll('#num-grid .num').forEach(n=>n.classList.remove('active'));
+      };
+    });
+    document.querySelectorAll('#num-grid .num').forEach(n=>{
+      n.onclick=()=>{
+        document.querySelectorAll('#num-grid .num').forEach(x=>x.classList.remove('active'));
+        n.classList.add('active'); currentBetType='number'; currentChoice=Number(n.dataset.n);
+        document.querySelectorAll('#mode-seg .chip').forEach(x=>x.classList.remove('active'));
+      };
+    });
+    document.getElementById('quick-amt').querySelectorAll('.qchip').forEach(q=>{
+      q.onclick=()=>{ betAmountEl.value = Number(q.dataset.v); };
+    });
+
+    betBtn.onclick=async()=>{
+      if(!currentUser) return alert('Please login first');
+      const amount=Number(betAmountEl.value);
+      if(!amount || amount<=0) return alert('Enter amount');
+      const remaining = 60 - getIST().getSeconds();
+      if (remaining <= CLOSE_BUFFER) return alert('Bet closed');
+
+      let odds = BIG_ODDS;
+      if (currentBetType==='small') odds=SMALL_ODDS;
+      if (currentBetType==='number') odds=NUMBER_ODDS;
+
+      const { error } = await supabase.rpc('place_bet_now', {
+        _user_id: currentUser.id,
+        _email: currentUser.email,
+        _bet_type: currentBetType,
+        _choice: currentChoice,
+        _amount: amount,
+        _odds: odds
+      });
+      if (error) {
+        if (String(error.message).includes('BET_CLOSED')) return alert('Bet closed');
+        if (String(error.message).includes('INSUFFICIENT_BALANCE')) return alert('Insufficient balance');
+        return alert('Bet failed: '+error.message);
+      }
+
+      betAmountEl.value='';
+      alert('✅ Bet placed!');
+      await loadBalance();
+      await loadMyLastBets();
+    };
+  </script>
+</body>
+</html>
