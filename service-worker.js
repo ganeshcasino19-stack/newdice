@@ -1,4 +1,4 @@
-// 每次更新都要改版本号，避免旧缓存干扰
+// Change the version number with each update to avoid old cache interference
 const CACHE = 'ganeshcasino-pwa-v2';
 const ASSETS = [
   '/', '/index.html',
@@ -12,7 +12,7 @@ const ASSETS = [
   '/icons/apple-icon-180.png'
 ];
 
-// 安装：预缓存静态资源
+// Install: Pre-cache static resources
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE).then((c) => c.addAll(ASSETS))
@@ -20,7 +20,7 @@ self.addEventListener('install', (e) => {
   self.skipWaiting();
 });
 
-// 激活：清理旧缓存
+// Activate: Clean up old cache
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -29,7 +29,7 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// 判断是否要绕过缓存（比如 Supabase / API）
+// Determine whether to bypass cache (e.g., Supabase / API)
 function isBypass(url) {
   try {
     const u = new URL(url);
@@ -41,26 +41,26 @@ function isBypass(url) {
   }
 }
 
-// fetch 拦截
+// fetch intercept
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
 
-  // 只处理 GET + 同源静态资源
+  // Only process GET + same-origin static resources
   if (req.method !== 'GET' || url.origin !== location.origin) return;
 
-  // Supabase / API 绕过缓存
+  // Supabase / API bypass cache
   if (isBypass(req.url)) {
     e.respondWith(fetch(req).catch(() => caches.match(req)));
     return;
   }
 
-  // HTML 页面：网络优先
+  // HTML page: Network first
   if (req.destination === 'document' || req.headers.get('accept')?.includes('text/html')) {
     e.respondWith((async () => {
       try {
         const netRes = await fetch(req);
-        const copy = netRes.clone(); // 先 clone
+        const copy = netRes.clone(); // clone first
         caches.open(CACHE).then(c => c.put(req, copy));
         return netRes;
       } catch {
@@ -70,11 +70,11 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 其他静态文件：缓存优先，后台更新
+  // Other static files: Cache first, update in background
   e.respondWith((async () => {
     const cached = await caches.match(req);
     if (cached) {
-      // 后台更新
+      // Background update
       fetch(req).then((netRes) => {
         if (netRes && netRes.status === 200) {
           const copy = netRes.clone();

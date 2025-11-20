@@ -1,9 +1,9 @@
-// supabase-config.js  —— 直接覆盖这个文件即可
-// 说明：前端只用 anon key；千万不要把 service_role 放到前端！
+// supabase-config.js  —— Just overwrite this file
+// Note: Frontend only uses anon key; never put service_role in the frontend!
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-// ====== 你的项目配置（已填好）======
+// ====== Your project configuration (filled in) ======
 const supabaseUrl = 'https://iwowrqqofqzpookdhboj.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b3dycXFvZnF6cG9va2RoYm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2MTcyMDgsImV4cCI6MjA3OTE5MzIwOH0.cVmX0o6wdz-09OTY0WdEnTptAx9UeBvu0pm6Dfbn6ts';
 
@@ -14,16 +14,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 /* ===================================================================
- *                       Common helpers（可选）
+ *                       Common helpers (optional)
  * =================================================================== */
 
-// 当前登录用户
+// Current logged-in user
 export async function getCurrentUser() {
   const { data } = await supabase.auth.getUser();
   return data?.user ?? null;
 }
 
-// 用户余额
+// User balance
 export async function getUserBalance(userId) {
   const { data, error } = await supabase
     .from('users')
@@ -35,10 +35,10 @@ export async function getUserBalance(userId) {
 }
 
 /* ===================================================================
- *                 Andar Bahar API（使用 RPC，避免直插）
+ *                 Andar Bahar API (use RPC, avoid direct insert)
  * =================================================================== */
 
-// 原子下注（扣款 + 封盘校验 + 写注单）
+// Atomic bet (deduct + lock check + write bet slip)
 // side: 'andar' | 'bahar'
 export async function placeABBetNow({ userId, email, side, amount, odds }) {
   return await supabase.rpc('place_ab_bet_now', {
@@ -50,7 +50,7 @@ export async function placeABBetNow({ userId, email, side, amount, odds }) {
   });
 }
 
-// 上一期结果（传入上一期 round_number，返回 'andar' | 'bahar' | null）
+// Previous period result (pass previous round_number, return 'andar' | 'bahar' | null)
 export async function getABPrevResult(prevRoundNumber) {
   const { data, error } = await supabase
     .from('ab_rounds')
@@ -61,7 +61,7 @@ export async function getABPrevResult(prevRoundNumber) {
   return data?.result_side ?? null;
 }
 
-// 用户最近 N 条 AB 注单（只读）
+// User's recent N AB bet slips (read-only)
 export async function getABUserBets(userId, limit = 10) {
   const { data, error } = await supabase
     .from('ab_bets')
@@ -73,7 +73,7 @@ export async function getABUserBets(userId, limit = 10) {
   return data || [];
 }
 
-// （可选）读取某个期号详情
+// (Optional) Read details of a specific round number
 export async function getABRound(roundNumber) {
   const { data, error } = await supabase
     .from('ab_rounds')

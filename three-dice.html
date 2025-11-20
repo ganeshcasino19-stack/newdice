@@ -401,12 +401,12 @@
   </div>
 
   <script>
-    // 1) Supabase —— 替换为你的项目
+    // 1) Supabase —— Replace with your project
     const SUPABASE_URL = "https://iwowrqqofqzpookdhboj.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b3dycXFvZnF6cG9va2RoYm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2MTcyMDgsImV4cCI6MjA3OTE5MzIwOH0.cVmX0o6wdz-09OTY0WdEnTptAx9UeBvu0pm6Dfbn6ts";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    // 2) 只保留三类赔率；sum 与后端对齐（4–17）
+    // 2) Only keep three types of odds; sum aligns with the backend (4–17)
     const ODDS = {
       big_small: { big: 2.0, small: 2.0 },
       odd_even: { odd: 2.0, even: 2.0 },
@@ -585,10 +585,10 @@
       renderOptions();
       dom.placeBetBtn.onclick = placeBet;
 
-      // 自举一次（补期/推进）
+      // Bootstrap once (fill/advance period)
       try { await supabase.rpc('rpc_td_tick'); } catch (e) { }
 
-      // Realtime（可选），有就更快
+      // Realtime (optional), faster if available
       try {
         supabase.channel('three_dice_rounds')
           .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'three_dice_public_rounds' }, async (payload) => {

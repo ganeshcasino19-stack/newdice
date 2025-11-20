@@ -18,7 +18,7 @@
   <meta name="apple-mobile-web-app-title" content="Ganeshcasino">
   <link rel="apple-touch-icon" href="/icons/apple-icon-180.png">
 
-  <!-- 注册 Service Worker -->
+  <!-- Register Service Worker -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -65,7 +65,7 @@
       margin: 0;
       font-family: 'Poppins', system-ui, Segoe UI, Roboto, Arial;
       color: var(--text);
-      /* 背景 */
+      /* Background */
       background:
         radial-gradient(1200px 520px at 120% -10%, #ffe7c6 0%, transparent 60%),
         radial-gradient(1200px 520px at -20% 0%, #ffe1e8 0%, transparent 55%),
@@ -892,19 +892,19 @@
 
 
 
-             <div class="game">
+          <!--     <div class="game">
             <div class="thumb dice">🎲</div>
             <div class="title">Lucky Dice</div>
             <div class="desc">Bet on Big/Small or exact number. Results every minute (IST).</div>
             <a class="btn primary" href="./dice.html">Play</a>
-          </div>  
+          </div>  -->
 
-           <div class="game">
+          <!--      <div class="game">
             <div class="thumb ab">🃏</div>
             <div class="title">Andar Bahar</div>
             <div class="desc">Bet on Andar or Bahar. Result every minute (IST).</div>
             <a class="btn primary" href="./ab.html">Play</a>
-          </div> 
+          </div> -->
 
           <div class="game">
             <div class="thumb">🧧</div>
@@ -1306,8 +1306,15 @@
     signupBtn.onclick = async () => {
       const email = loginEmail.value.trim(), pass = loginPass.value;
       if (!email || !pass) return toast('Enter email & password');
+      
+      // Validate password strength
+      if (pass.length < 8) return toast('Password must be at least 8 characters');
+      if (!/[A-Z]/.test(pass)) return toast('Password must contain at least one uppercase letter');
+      if (!/[a-z]/.test(pass)) return toast('Password must contain at least one lowercase letter');
+      if (!/[0-9]/.test(pass)) return toast('Password must contain at least one number');
+      
       const { error } = await supabase.auth.signUp({ email, password: pass });
-      if (error) return toast(error.message);
+      if (error) return toast('Signup failed: ' + error.message);
       toast('✅ Signup success. Now login.');
     };
     loginBtn.onclick = async () => {
